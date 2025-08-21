@@ -15,6 +15,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/relativeTime.js"></script>
@@ -23,7 +25,7 @@
     </script>
 
     <script>
-        // Script untuk mengaktifkan Dark Mode berdasarkan preferensi sistem
+        // Script Dark Mode
         if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia(
                 '(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -31,6 +33,21 @@
             document.documentElement.classList.remove('dark')
         }
     </script>
+    <style>
+        /* Style tambahan untuk Drag-and-Drop */
+        .task-item {
+            cursor: grab;
+        }
+
+        .task-item:active {
+            cursor: grabbing;
+        }
+
+        .sortable-ghost {
+            opacity: 0.4;
+            background: #c8ebfb;
+        }
+    </style>
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex items-center justify-center p-4 font-sans">
@@ -47,36 +64,95 @@
                 Daftar Tugasku
             </h1>
 
-            <form id="addTaskForm" class="flex gap-2 mb-6">
-                <input id="taskTitleInput" type="text" placeholder="Tulis tugas baru di sini..."
-                    class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                    required />
+            <form id="addTaskForm" class="mb-6 space-y-4">
+                <div>
+                    <label for="taskTitleInput"
+                        class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Judul Tugas</label>
+                    <input id="taskTitleInput" type="text" placeholder="Contoh: Belajar JavaScript..."
+                        class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                        required />
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="prioritySelect"
+                            class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Prioritas</label>
+                        <select id="prioritySelect"
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                            <option value="sedang" selected>Sedang</option>
+                            <option value="penting">Penting</option>
+                            <option value="rendah">Rendah</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="dueDateInput"
+                            class="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Jatuh Tempo</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
+                                <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true"
+                                    xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4Z" />
+                                    <path
+                                        d="M0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z" />
+                                </svg>
+                            </div>
+                            <input datepicker datepicker-autohide datepicker-format="yyyy-mm-dd" type="text"
+                                id="dueDateInput"
+                                class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                                placeholder="Pilih tanggal">
+                        </div>
+                    </div>
+                </div>
                 <button type="submit"
-                    class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Tambah</button>
+                    class="w-full text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Tambah
+                    Tugas</button>
             </form>
 
             <hr class="h-px mb-4 bg-gray-200 border-0 dark:bg-gray-700">
 
+            <div id="toolbar-container" class="mb-4 space-y-4">
+                <div id="progress-indicator" class="space-y-1">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-base font-medium text-blue-700 dark:text-white">Progres Penyelesaian</span>
+                        <span id="progress-text" class="text-sm font-medium text-blue-700 dark:text-white">0 / 0</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+                        <div id="progress-bar"
+                            class="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out"
+                            style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div id="filter-buttons" class="inline-flex rounded-md shadow-sm" role="group">
+                        <button type="button" data-filter="semua"
+                            class="filter-btn px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-s-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+                            Semua
+                        </button>
+                        <button type="button" data-filter="aktif"
+                            class="filter-btn px-4 py-2 text-sm font-medium text-gray-900 bg-white border-t border-b border-gray-200 hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+                            Aktif
+                        </button>
+                        <button type="button" data-filter="selesai"
+                            class="filter-btn px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-e-lg hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white">
+                            Selesai
+                        </button>
+                    </div>
+
+                    <div>
+                        <select id="sort-select"
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+                            <option value="manual">Urutkan: Manual</option>
+                            <option value="terbaru">Urutkan: Terbaru</option>
+                            <option value="terlama">Urutkan: Terlama</option>
+                            <option value="prioritas">Urutkan: Prioritas</option>
+                            <option value="jatuh_tempo">Urutkan: Jatuh Tempo</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
             <div id="taskListContainer" class="space-y-3">
-                <div id="loading" class="text-center py-4">
-                    <svg aria-hidden="true"
-                        class="inline w-10 h-10 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600"
-                        viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                            d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-                            fill="currentColor" />
-                        <path
-                            d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-                            fill="currentFill" />
-                    </svg>
-                </div>
-                <div id="emptyState" class="hidden text-center py-8">
-                    <img src="https://illustrations.popsy.co/amber/success.svg" alt="Tidak ada tugas"
-                        class="w-48 mx-auto mb-4">
-                    <p class="text-lg font-medium text-gray-900 dark:text-white">🎉 Hore! Semuanya selesai.</p>
-                    <p class="text-gray-600 dark:text-gray-400">Waktunya bersantai atau tambahkan tugas baru di atas.
-                    </p>
-                </div>
             </div>
         </div>
     </div>
@@ -115,90 +191,158 @@
         </div>
     </div>
 
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/flowbite.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.3.0/datepicker.min.js"></script>
 
     <script>
         // === KONFIGURASI ===
-        // Ganti URL ini dengan alamat API backend Anda
         const API_URL = '/api/tasks';
-
-        // Konfigurasi global untuk Toastr
         toastr.options = {
             "closeButton": true,
             "progressBar": true,
             "positionClass": "toast-top-right",
-            "preventDuplicates": false,
-            "timeOut": "3000",
+            "timeOut": "3000"
         };
 
         // === ELEMEN DOM ===
         const taskListContainer = document.getElementById('taskListContainer');
         const addTaskForm = document.getElementById('addTaskForm');
         const taskTitleInput = document.getElementById('taskTitleInput');
-        const loadingIndicator = document.getElementById('loading');
-        const emptyState = document.getElementById('emptyState');
-
-        // Elemen & Instance Modal Flowbite
+        const prioritySelect = document.getElementById('prioritySelect');
+        const dueDateInput = document.getElementById('dueDateInput');
+        const filterButtonsContainer = document.getElementById('filter-buttons');
+        const sortSelect = document.getElementById('sort-select');
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
         const deleteConfirmModalEl = document.getElementById('delete-confirm-modal');
         const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         const deleteModal = new Modal(deleteConfirmModalEl);
 
-        let taskToDelete = null; // Variabel untuk menyimpan task yang akan dihapus
+        // === STATE APLIKASI ===
+        let allTasks = [];
+        let currentFilter = 'semua';
+        let currentSort = 'manual';
+        let taskToDelete = null;
 
         // === FUNGSI-FUNGSI UTAMA ===
-
-        /**
-         * Menampilkan notifikasi menggunakan Toastr
-         * @param {string} message Pesan yang akan ditampilkan
-         * @param {string} type 'success', 'error', 'warning', 'info'
-         */
-        const showAlert = (message, type = 'success') => {
-            toastr[type](message);
-        };
+        const showAlert = (message, type = 'success') => toastr[type](message);
 
         const fetchTasks = async () => {
-            showLoading(true);
+            taskListContainer.innerHTML =
+                `<div class="text-center py-4"><svg aria-hidden="true" class="inline w-10 h-10 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/><path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/></svg></div>`;
             try {
                 const response = await fetch(API_URL);
                 if (!response.ok) throw new Error('Gagal mengambil data tugas');
-                const tasks = await response.json();
-                tasks.sort((a, b) => a.is_completed - b.is_completed || new Date(b.created_at) - new Date(a
-                    .created_at));
-                renderTasks(tasks);
+                allTasks = await response.json();
+                updateProgressIndicator();
+                displayTasks();
             } catch (error) {
                 console.error('Error fetching tasks:', error);
                 showAlert('Gagal memuat data tugas dari server!', 'error');
-            } finally {
-                showLoading(false);
             }
         };
 
-        const renderTasks = (tasks) => {
-            taskListContainer.querySelectorAll('.task-item').forEach(el => el.remove());
-            if (tasks.length === 0) {
-                emptyState.classList.remove('hidden');
+        const displayTasks = () => {
+            let processedTasks = [...allTasks];
+
+            if (currentFilter === 'aktif') {
+                processedTasks = processedTasks.filter(task => !task.is_completed);
+            } else if (currentFilter === 'selesai') {
+                processedTasks = processedTasks.filter(task => task.is_completed);
+            }
+
+            if (currentSort !== 'manual') {
+                const priorityMap = {
+                    'penting': 1,
+                    'sedang': 2,
+                    'rendah': 3
+                };
+                switch (currentSort) {
+                    case 'terlama':
+                        processedTasks.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                        break;
+                    case 'prioritas':
+                        processedTasks.sort((a, b) => priorityMap[a.priority] - priorityMap[b.priority]);
+                        break;
+                    case 'jatuh_tempo':
+                        processedTasks.sort((a, b) => {
+                            if (!a.due_date) return 1;
+                            if (!b.due_date) return -1;
+                            return new Date(a.due_date) - new Date(b.due_date);
+                        });
+                        break;
+                    case 'terbaru':
+                    default:
+                        processedTasks.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                        break;
+                }
+            }
+
+            renderTasks(processedTasks);
+        };
+
+        const renderTasks = (tasksToRender) => {
+            taskListContainer.innerHTML = '';
+            if (tasksToRender.length === 0) {
+                taskListContainer.innerHTML = `<div id="emptyState" class="text-center py-8">
+                    <img src="https://illustrations.popsy.co/amber/success.svg" alt="Tidak ada tugas" class="w-48 mx-auto mb-4">
+                    <p class="text-lg font-medium text-gray-900 dark:text-white">🎉 Tidak ada tugas untuk ditampilkan.</p>
+                    <p class="text-gray-600 dark:text-gray-400">Coba ubah filter Anda atau tambahkan tugas baru.</p>
+                </div>`;
             } else {
-                emptyState.classList.add('hidden');
-                tasks.forEach(task => {
+                tasksToRender.forEach(task => {
                     const taskElement = document.createElement('div');
                     taskElement.className =
                         'flex items-center p-3 text-base font-bold text-gray-900 rounded-lg bg-gray-50 hover:bg-gray-100 group hover:shadow dark:bg-gray-600 dark:hover:bg-gray-500 dark:text-white task-item';
                     taskElement.setAttribute('data-id', task.id);
                     if (task.is_completed) taskElement.classList.add('task-completed', 'opacity-60');
+
                     const textClass = task.is_completed ? 'line-through' : '';
-                    const timeAgo = task.created_at ? dayjs(task.created_at).fromNow() : '';
+
+                    const getPriorityBadge = (priority) => {
+                        switch (priority) {
+                            case 'penting':
+                                return `<span class="bg-red-100 text-red-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-red-900 dark:text-red-300">Penting</span>`;
+                            case 'rendah':
+                                return `<span class="bg-green-100 text-green-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-green-900 dark:text-green-300">Rendah</span>`;
+                            default:
+                                return `<span class="bg-yellow-100 text-yellow-800 text-xs font-medium me-2 px-2.5 py-0.5 rounded dark:bg-yellow-900 dark:text-yellow-300">Sedang</span>`;
+                        }
+                    };
+
+                    const getDueDateInfo = (dueDate) => {
+                        if (!dueDate) return '';
+                        const date = dayjs(dueDate);
+                        const isOverdue = !task.is_completed && date.isBefore(dayjs(), 'day');
+                        const colorClass = isOverdue ? 'text-red-600 dark:text-red-500' :
+                            'text-gray-500 dark:text-gray-400';
+
+                        return `<div class="flex items-center gap-1 text-xs ${colorClass}">
+                             <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20"><path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4Z"/><path d="M0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/></svg>
+                            <span class="ml-1">Jatuh tempo: ${date.format('D MMM YYYY')}</span>
+                            ${isOverdue ? `<span class="font-semibold">(Terlewat)</span>` : ''}
+                        </div>`;
+                    };
+
                     taskElement.innerHTML = `
-                        <div class="flex items-center gap-4 w-full">
-                            <input type="checkbox" class="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 toggle-status" ${task.is_completed ? 'checked' : ''} />
+                        <div class="flex items-start gap-4 w-full">
+                            <input type="checkbox" class="mt-1 w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600 toggle-status" ${task.is_completed ? 'checked' : ''} />
                             <div class="flex-grow">
                                 <span class="task-title ${textClass}">${task.title}</span>
-                                <div class="text-xs text-gray-500 dark:text-gray-400">${timeAgo}</div>
+                                <input type="text" class="edit-task-input hidden bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-1.5 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${task.title}" />
+                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5">
+                                    ${getPriorityBadge(task.priority)}
+                                    ${getDueDateInfo(task.due_date)}
+                                </div>
                             </div>
-                            <button class="inline-flex items-center justify-center w-8 h-8 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-white bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm delete-btn">
-                               <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6m0 12L6 6"/></svg>
-                               <span class="sr-only">Hapus tugas</span>
-                            </button>
+                            <div class="flex flex-col gap-1 md:flex-row">
+                                <button class="inline-flex items-center justify-center w-8 h-8 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm edit-btn">
+                                    <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20"><path d="M17.414 2.586a2 2 0 0 0-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 0 0 0-2.828Z"/><path fill-rule="evenodd" d="M2 6a2 2 0 0 1 2-2h4a1 1 0 0 1 0 2H4v10h10v-4a1 1 0 1 1 2 0v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6Z" clip-rule="evenodd"/></svg>
+                                </button>
+                                <button class="inline-flex items-center justify-center w-8 h-8 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-white bg-transparent hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-sm delete-btn">
+                                   <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6m0 12L6 6"/></svg>
+                                </button>
+                            </div>
                         </div>`;
                     taskListContainer.appendChild(taskElement);
                 });
@@ -212,9 +356,20 @@
             }
         };
 
+        const updateProgressIndicator = () => {
+            const completedTasks = allTasks.filter(t => t.is_completed).length;
+            const totalTasks = allTasks.length;
+            const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+            progressText.innerText = `${completedTasks} / ${totalTasks}`;
+            progressBar.style.width = `${percentage}%`;
+        };
+
         const handleAddTask = async (event) => {
             event.preventDefault();
             const title = taskTitleInput.value.trim();
+            const priority = prioritySelect.value;
+            const due_date = dueDateInput.value || null;
             if (!title) return;
             const submitButton = event.submitter;
             submitButton.disabled = true;
@@ -228,18 +383,20 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        title
+                        title,
+                        priority,
+                        due_date
                     })
                 });
                 if (!response.ok) throw new Error('Gagal menambah tugas');
-                taskTitleInput.value = '';
+                addTaskForm.reset();
                 showAlert('Tugas berhasil ditambahkan!', 'success');
                 fetchTasks();
             } catch (error) {
                 showAlert(error.message, 'error');
             } finally {
                 submitButton.disabled = false;
-                submitButton.innerHTML = originalText;
+                submitButton.innerHTML = "Tambah Tugas";
             }
         };
 
@@ -247,26 +404,61 @@
             const target = event.target;
             const taskElement = target.closest('.task-item');
             if (!taskElement) return;
-            const taskId = taskElement.dataset.id;
+            const taskId = parseInt(taskElement.dataset.id);
 
             if (target.classList.contains('toggle-status')) {
-                updateTaskStatus(taskId, target.checked, taskElement);
+                updateTaskStatus(taskId, target.checked);
             }
 
             if (target.closest('.delete-btn')) {
-                // Simpan info task dan tampilkan modal Flowbite
                 taskToDelete = {
                     id: taskId,
                     element: taskElement
                 };
                 deleteModal.show();
             }
+
+            if (target.closest('.edit-btn')) {
+                const titleSpan = taskElement.querySelector('.task-title');
+                const editInput = taskElement.querySelector('.edit-task-input');
+                document.querySelectorAll('.edit-task-input:not(.hidden)').forEach(input => {
+                    input.classList.add('hidden');
+                    input.previousElementSibling.classList.remove('hidden');
+                });
+                titleSpan.classList.add('hidden');
+                editInput.classList.remove('hidden');
+                editInput.focus();
+                editInput.select();
+                const saveChanges = () => {
+                    const newTitle = editInput.value.trim();
+                    const oldTitle = titleSpan.innerText;
+                    editInput.classList.add('hidden');
+                    titleSpan.classList.remove('hidden');
+                    if (newTitle && newTitle !== oldTitle) {
+                        updateTaskTitle(taskId, newTitle, titleSpan);
+                    } else {
+                        editInput.value = oldTitle;
+                    }
+                    editInput.removeEventListener('blur', saveChanges);
+                    editInput.removeEventListener('keydown', handleKeyDown);
+                };
+                const handleKeyDown = (e) => {
+                    if (e.key === 'Enter') saveChanges();
+                    else if (e.key === 'Escape') {
+                        editInput.value = titleSpan.innerText;
+                        saveChanges();
+                    }
+                };
+                editInput.addEventListener('blur', saveChanges);
+                editInput.addEventListener('keydown', handleKeyDown);
+            }
         };
 
-        const updateTaskStatus = async (id, is_completed, taskElement) => {
-            const titleSpan = taskElement.querySelector('.task-title');
-            titleSpan.classList.toggle('line-through', is_completed);
-            taskElement.classList.toggle('opacity-60', is_completed);
+        const updateTaskStatus = async (id, is_completed) => {
+            const task = allTasks.find(t => t.id === id);
+            if (task) task.is_completed = is_completed;
+            updateProgressIndicator();
+            displayTasks();
             try {
                 const response = await fetch(`${API_URL}/${id}`, {
                     method: 'PUT',
@@ -280,8 +472,33 @@
                 if (!response.ok) throw new Error('Gagal mengupdate status');
             } catch (error) {
                 showAlert(error.message, 'error');
-                titleSpan.classList.toggle('line-through', !is_completed);
-                taskElement.classList.toggle('opacity-60', !is_completed);
+                const task = allTasks.find(t => t.id === id);
+                if (task) task.is_completed = !is_completed;
+                updateProgressIndicator();
+                displayTasks();
+            }
+        };
+
+        const updateTaskTitle = async (id, newTitle, titleSpanElement) => {
+            const oldTitle = titleSpanElement.innerText;
+            titleSpanElement.innerText = newTitle;
+            try {
+                const response = await fetch(`${API_URL}/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: newTitle
+                    })
+                });
+                if (!response.ok) throw new Error('Gagal memperbarui judul tugas');
+                const task = allTasks.find(t => t.id === id);
+                if (task) task.title = newTitle;
+                showAlert('Tugas berhasil diperbarui!', 'success');
+            } catch (error) {
+                showAlert(error.message, 'error');
+                titleSpanElement.innerText = oldTitle;
             }
         };
 
@@ -292,16 +509,15 @@
                 x: -100,
                 ease: "power2.in",
                 onComplete: async () => {
-                    taskElement.remove();
                     try {
                         const response = await fetch(`${API_URL}/${id}`, {
                             method: 'DELETE'
                         });
                         if (!response.ok) throw new Error('Gagal menghapus tugas di server');
+                        allTasks = allTasks.filter(task => task.id !== id);
+                        updateProgressIndicator();
+                        displayTasks();
                         showAlert('Tugas berhasil dihapus.', 'success');
-                        if (taskListContainer.querySelectorAll('.task-item').length === 0) {
-                            emptyState.classList.remove('hidden');
-                        }
                     } catch (error) {
                         showAlert(error.message, 'error');
                         fetchTasks();
@@ -310,30 +526,58 @@
             });
         };
 
-        const showLoading = (isLoading) => {
-            if (isLoading) {
-                loadingIndicator.classList.remove('hidden');
-                emptyState.classList.add('hidden');
-                taskListContainer.querySelectorAll('.task-item').forEach(el => el.remove());
-            } else {
-                loadingIndicator.classList.add('hidden');
-            }
-        };
-
-
         // === EVENT LISTENERS ===
-        document.addEventListener('DOMContentLoaded', fetchTasks);
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchTasks();
+
+            new Sortable(taskListContainer, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: (evt) => {
+                    const newOrderIds = Array.from(taskListContainer.children).map(item => parseInt(
+                        item.dataset.id));
+                    allTasks.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
+                    sortSelect.value = 'manual';
+                    currentSort = 'manual';
+                    console.log("Urutan baru (untuk dikirim ke API):", newOrderIds);
+                }
+            });
+        });
+
         addTaskForm.addEventListener('submit', handleAddTask);
         taskListContainer.addEventListener('click', handleTaskListClick);
 
-        // Event listener untuk tombol konfirmasi di dalam modal
         confirmDeleteBtn.addEventListener('click', () => {
             if (taskToDelete) {
                 deleteTask(taskToDelete.id, taskToDelete.element);
-                taskToDelete = null; // Reset setelah digunakan
+                taskToDelete = null;
             }
             deleteModal.hide();
         });
+
+        filterButtonsContainer.addEventListener('click', (e) => {
+            const button = e.target.closest('.filter-btn');
+            if (!button) return;
+            currentFilter = button.dataset.filter;
+            filterButtonsContainer.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('text-blue-700', 'bg-gray-100', 'dark:bg-gray-700',
+                    'dark:text-white');
+                btn.classList.add('bg-white', 'dark:bg-gray-800');
+            });
+            button.classList.add('text-blue-700', 'bg-gray-100', 'dark:bg-gray-700', 'dark:text-white');
+            button.classList.remove('bg-white', 'dark:bg-gray-800');
+            displayTasks();
+        });
+
+        sortSelect.addEventListener('change', (e) => {
+            currentSort = e.target.value;
+            displayTasks();
+        });
+
+        filterButtonsContainer.querySelector('[data-filter="semua"]')
+            .classList.add('text-blue-700', 'bg-gray-100', 'dark:bg-gray-700', 'dark:text-white');
+        filterButtonsContainer.querySelector('[data-filter="semua"]')
+            .classList.remove('bg-white', 'dark:bg-gray-800');
     </script>
 </body>
 

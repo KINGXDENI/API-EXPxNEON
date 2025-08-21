@@ -17,6 +17,19 @@ model Task {
   is_completed Boolean  @default(false)
   created_at   DateTime @default(now())
 
+  // (BARU) Menambahkan kolom baru untuk fitur-fitur canggih
+  priority     PriorityLevel @default(SEDANG) // Menggunakan Enum untuk type safety
+  due_date     DateTime?     // Opsional, ditandai dengan '?'
+  position     Int           // Untuk menyimpan urutan manual (drag-and-drop)
+
   // Memberi nama tabel 'tasks' di database
   @@map("tasks")
+}
+
+// (BARU) Mendefinisikan Enum untuk prioritas.
+// Ini memastikan hanya nilai-nilai ini yang bisa dimasukkan ke database.
+enum PriorityLevel {
+  RENDAH
+  SEDANG
+  PENTING
 }
