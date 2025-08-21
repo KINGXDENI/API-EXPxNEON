@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="cupcake">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Task Sederhana | DaisyUI</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* Animasi fade-in sederhana untuk task baru */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .task-item {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
+</head>
+
+<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
+
+    <div class="card w-full max-w-2xl bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h1 class="card-title text-3xl mb-4">Daftar Tugasku</h1>
+
+            <form id="addTaskForm" class="flex gap-2 mb-6">
+                <input id="taskTitleInput" type="text" placeholder="Tulis tugas baru di sini..."
+                    class="input input-bordered w-full" required />
+                <button type="submit" class="btn btn-primary">Tambah</button>
+            </form>
+
+            <div class="divider">Tugas</div>
+
+            <div id="taskListContainer" class="space-y-2">
+                <div id="loading" class="text-center py-4">
+                    <span class="loading loading-spinner loading-lg"></span>
+                </div>
+
+                <div id="emptyState" class="hidden text-center py-4">
+                    <p class="text-gray-500">🎉 Hore! Tidak ada tugas yang perlu dikerjakan.</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // === KONFIGURASI ===
+        // Ganti URL ini jika backend Anda di-deploy di tempat lain
+        const API_URL = 'http://localhost:3000/tasks';
+
+        // === ELEMEN DOM ===
+        const taskListContainer = document.getElementById('taskListContainer');
+        const addTaskForm = document.getElementById('addTaskForm');
+        const taskTitleInput = document.getElementById('taskTitleInput');
+        const loadingIndicator = document.getElementById('loading');
+        const emptyState = document.getElementById('emptyState');
+
+        // === FUNGSI-FUNGSI API ===
+
+        /**
+         * Mengambil semua task dari backend dan menampilkannya
+         */
+        const fetchTasks = async () => {
+            showLoading(true);
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('Gagal mengambil data');
+                const tasks = await response.json();
+                renderTasks(tasks);
+            } catch (error) {
+                console.error('Error fetching tasks:', error);
+                taskListContainer.innerHTML = `<p class="text-error text-center">Gagal memuat tugas.</p>`;
+            } finally {
+                showLoading(false);
+            }
+        };
+
+        /**
+         * Menampilkan task ke dalam DOM
+         */
+        const renderTasks = (tasks) => {
+            // Bersihkan container sebelum render ulang
+            taskListContainer.innerHTML = '';
+
+            if (tasks.length === 0) {
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                tasks.forEach(task => {
+                    const taskElement = document.createElement('div');
+                    taskElement.className = 'alert shadow-sm task-item';
+                    taskElement.setAttribute('data-id', task.id);
+
+                    const textClass = task.is_completed ? 'line-through text-gray-400' : '';
+
+                    taskElement.innerHTML = `
+                        <div class="flex items-center gap-4 w-full">
+                            <input 
+                                type="checkbox" 
+                                class="checkbox checkbox-primary toggle-status" 
+                                ${task.is_completed ? 'checked' : ''} 
+                            />
+                            <span class="flex-grow ${textClass}">${task.title}</span>
+                            <button class="btn btn-ghost btn-xs btn-circle delete-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                    `;
+                    taskListContainer.appendChild(taskElement);
+                });
+            }
+        };
+
+        /**
+         * Mengirim task baru ke backend
+         */
+        const handleAddTask = async (event) => {
+            event.preventDefault();
+            const title = taskTitleInput.value.trim();
+            if (!title) return;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title
+                    })
+                });
+                if (!response.ok) throw new Error('Gagal menambah tugas');
+
+                taskTitleInput.value = ''; // Kosongkan input
+                fetchTasks(); // Muat ulang daftar task
+            } catch (error) {
+                console.error('Error adding task:', error);
+            }
+        };
+
+        /**
+         * Menangani klik pada checkbox atau tombol hapus
+         */
+        const handleTaskListClick = (event) => {
+            const target = event.target;
+            const taskElement = target.closest('.task-item');
+            if (!taskElement) return;
+
+            const taskId = taskElement.dataset.id;
+
+            // Jika checkbox di-klik
+            if (target.classList.contains('toggle-status')) {
+                const is_completed = target.checked;
+                updateTaskStatus(taskId, is_completed);
+            }
+
+            // Jika tombol hapus di-klik
+            if (target.closest('.delete-btn')) {
+                if (confirm('Apakah Anda yakin ingin menghapus tugas ini?')) {
+                    deleteTask(taskId);
+                }
+            }
+        };
+
+        /**
+         * Mengupdate status selesai/belum selesai
+         */
+        const updateTaskStatus = async (id, is_completed) => {
+            try {
+                const response = await fetch(`${API_URL}/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        is_completed
+                    })
+                });
+                if (!response.ok) throw new Error('Gagal mengupdate status');
+                fetchTasks(); // Muat ulang daftar untuk menampilkan perubahan
+            } catch (error) {
+                console.error('Error updating task:', error);
+            }
+        };
+
+        /**
+         * Menghapus task
+         */
+        const deleteTask = async (id) => {
+            try {
+                const response = await fetch(`${API_URL}/${id}`, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) throw new Error('Gagal menghapus tugas');
+                fetchTasks(); // Muat ulang daftar
+            } catch (error) {
+                console.error('Error deleting task:', error);
+            }
+        };
+
+        /**
+         * Menampilkan atau menyembunyikan indikator loading
+         */
+        const showLoading = (isLoading) => {
+            if (isLoading) {
+                loadingIndicator.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                taskListContainer.innerHTML = ''; // Kosongkan task list saat loading
+            } else {
+                loadingIndicator.classList.add('hidden');
+            }
+        };
+
+
+        // === EVENT LISTENERS ===
+        document.addEventListener('DOMContentLoaded', fetchTasks);
+        addTaskForm.addEventListener('submit', handleAddTask);
+        taskListContainer.addEventListener('click', handleTaskListClick);
+    </script>
+
+</body>
+
+</html>
