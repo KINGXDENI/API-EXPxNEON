@@ -9,13 +9,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 // Middleware sederhana untuk CORS
-app.use((req, res, next) => {
-    // Mengizinkan akses dari semua origin. Untuk produksi, ganti '*' dengan domain frontend Anda.
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    next();
-});
+
 
 
 // === ROUTES / ENDPOINTS DENGAN PRISMA ===
