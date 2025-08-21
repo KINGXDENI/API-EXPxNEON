@@ -4,78 +4,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Task Sederhana | DaisyUI</title>
+    <title>Aplikasi Task Keren | GSAP + SweetAlert2</title>
 
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <style>
-        /* Animasi fade-in sederhana untuk task baru */
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1/plugin/relativeTime.js"></script>
+    <script>
+        dayjs.extend(window.dayjs_plugin_relativeTime)
+    </script>
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .task-item,
-        .alert-toast {
-            animation: fadeIn 0.3s ease-out;
-        }
-    </style>
 </head>
 
-<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
-
-    <div id="alertContainer" class="toast toast-top toast-center z-50"></div>
+<body class="bg-base-200 min-h-screen flex items-center justify-center p-4 font-sans">
 
     <div class="card w-full max-w-2xl bg-base-100 shadow-xl">
         <div class="card-body">
-            <h1 class="card-title text-3xl mb-4">Daftar Tugasku</h1>
+            <h1 class="card-title text-3xl mb-4 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="text-primary">
+                    <path d="M15 6.002H8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-4.5" />
+                    <path d="m16.5 2.5-3 3" />
+                    <path d="M20 6.5V2H15.5" /></svg>
+                Daftar Tugasku
+            </h1>
 
             <form id="addTaskForm" class="flex gap-2 mb-6">
                 <input id="taskTitleInput" type="text" placeholder="Tulis tugas baru di sini..."
-                    class="input input-bordered w-full" required />
+                    class="input input-bordered w-full focus:input-primary" required />
                 <button type="submit" class="btn btn-primary">Tambah</button>
             </form>
 
             <div class="divider">Tugas</div>
 
-            <div id="taskListContainer" class="space-y-2">
+            <div id="taskListContainer" class="space-y-3">
                 <div id="loading" class="text-center py-4">
-                    <span class="loading loading-spinner loading-lg"></span>
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
-                <div id="emptyState" class="hidden text-center py-4">
-                    <p class="text-gray-500">🎉 Hore! Tidak ada tugas yang perlu dikerjakan.</p>
+                <div id="emptyState" class="hidden text-center py-8">
+                    <img src="https://illustrations.popsy.co/amber/success.svg" alt="Tidak ada tugas"
+                        class="w-48 mx-auto mb-4">
+                    <p class="text-lg font-medium">🎉 Hore! Semuanya selesai.</p>
+                    <p class="text-base-content/70">Waktunya bersantai atau tambahkan tugas baru di atas.</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <dialog id="delete_modal" class="modal">
-        <div class="modal-box">
-            <h3 class="font-bold text-lg">Konfirmasi Hapus</h3>
-            <p class="py-4">Apakah Anda yakin ingin menghapus tugas ini? Aksi ini tidak dapat dibatalkan.</p>
-            <div class="modal-action">
-                <form method="dialog">
-                    <button class="btn">Batal</button>
-                    <button id="confirmDeleteBtn" class="btn btn-error">Hapus</button>
-                </form>
-            </div>
-        </div>
-    </dialog>
-
-
     <script>
         // === KONFIGURASI ===
-        // Pastikan URL ini sesuai dengan setup backend Anda
-        // Jika Anda mengikuti saran sebelumnya, gunakan '/api/tasks'
-        const API_URL = '/api/tasks';
+        const API_URL = '/api/tasks'; // Sesuaikan dengan backend Anda
 
         // === ELEMEN DOM ===
         const taskListContainer = document.getElementById('taskListContainer');
@@ -83,68 +65,100 @@
         const taskTitleInput = document.getElementById('taskTitleInput');
         const loadingIndicator = document.getElementById('loading');
         const emptyState = document.getElementById('emptyState');
-        const alertContainer = document.getElementById('alertContainer');
-        const deleteModal = document.getElementById('delete_modal');
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
-        let taskIdToDelete = null; // Variabel untuk menyimpan ID task yang akan dihapus
+        // (BARU) Konfigurasi untuk notifikasi toast SweetAlert2
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer)
+                toast.addEventListener('mouseleave', Swal.resumeTimer)
+            }
+        });
 
-        // === FUNGSI-FUNGSI UTAMA ===
+        // === FUNGSI-FUNGSI UTAMA (DIPERBARUI) ===
 
         /**
-         * Menampilkan notifikasi alert (toast)
+         * (DIUBAH) Menampilkan notifikasi menggunakan SweetAlert2
          * @param {string} message Pesan yang akan ditampilkan
-         * @param {string} type 'success' atau 'error'
+         * @param {string} type 'success', 'error', 'warning', 'info'
          */
         const showAlert = (message, type = 'success') => {
-            const alertElement = document.createElement('div');
-            const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
-            alertElement.className = `alert ${alertClass} shadow-lg alert-toast`;
-            alertElement.innerHTML = `<span>${message}</span>`;
-
-            alertContainer.appendChild(alertElement);
-
-            // Hapus alert setelah 3 detik
-            setTimeout(() => {
-                alertElement.remove();
-            }, 3000);
+            Toast.fire({
+                icon: type,
+                title: message
+            });
         };
 
         const fetchTasks = async () => {
             showLoading(true);
             try {
                 const response = await fetch(API_URL);
-                if (!response.ok) throw new Error('Gagal mengambil data');
+                if (!response.ok) throw new Error('Gagal mengambil data tugas');
                 const tasks = await response.json();
+                // Urutkan task, yang belum selesai di atas
+                tasks.sort((a, b) => a.is_completed - b.is_completed || new Date(b.created_at) - new Date(a
+                    .created_at));
                 renderTasks(tasks);
             } catch (error) {
                 console.error('Error fetching tasks:', error);
-                showAlert('Gagal memuat tugas.', 'error');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Gagal memuat data tugas dari server!',
+                });
             } finally {
                 showLoading(false);
             }
         };
 
         const renderTasks = (tasks) => {
-            taskListContainer.innerHTML = '';
+            // Bersihkan container sebelum render, KECUALI untuk loading & empty state
+            taskListContainer.querySelectorAll('.task-item').forEach(el => el.remove());
+
             if (tasks.length === 0) {
                 emptyState.classList.remove('hidden');
             } else {
                 emptyState.classList.add('hidden');
                 tasks.forEach(task => {
                     const taskElement = document.createElement('div');
-                    taskElement.className = 'alert shadow-sm task-item';
+                    taskElement.className =
+                    'alert shadow-sm task-item flex-nowrap'; // flex-nowrap untuk mencegah wrapping
                     taskElement.setAttribute('data-id', task.id);
-                    const textClass = task.is_completed ? 'line-through text-gray-400' : '';
+                    // Tambahkan kelas jika sudah selesai
+                    if (task.is_completed) {
+                        taskElement.classList.add('task-completed', 'bg-base-200');
+                    }
+
+                    const textClass = task.is_completed ? 'line-through text-base-content/50' : '';
+
+                    // (BARU) Gunakan Day.js untuk format tanggal
+                    const timeAgo = task.created_at ? dayjs(task.created_at).fromNow() : '';
+
                     taskElement.innerHTML = `
                         <div class="flex items-center gap-4 w-full">
                             <input type="checkbox" class="checkbox checkbox-primary toggle-status" ${task.is_completed ? 'checked' : ''} />
-                            <span class="flex-grow ${textClass}">${task.title}</span>
-                            <button class="btn btn-ghost btn-xs btn-circle delete-btn">
+                            <div class="flex-grow">
+                                <span class="task-title ${textClass}">${task.title}</span>
+                                <div class="text-xs text-base-content/60">${timeAgo}</div>
+                            </div>
+                            <button class="btn btn-ghost btn-sm btn-circle delete-btn text-error/70 hover:text-error hover:bg-error/10">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>`;
                     taskListContainer.appendChild(taskElement);
+                });
+
+                // (BARU) Animasikan semua task item yang baru dibuat dengan GSAP
+                gsap.from(".task-item", {
+                    duration: 0.5,
+                    opacity: 0,
+                    y: -20,
+                    stagger: 0.1, // Efek muncul satu per satu
+                    ease: "power3.out"
                 });
             }
         };
@@ -153,6 +167,10 @@
             event.preventDefault();
             const title = taskTitleInput.value.trim();
             if (!title) return;
+
+            const submitButton = event.submitter;
+            submitButton.classList.add('btn-disabled');
+            submitButton.innerHTML = `<span class="loading loading-spinner"></span>`;
 
             try {
                 const response = await fetch(API_URL, {
@@ -168,10 +186,13 @@
 
                 taskTitleInput.value = '';
                 showAlert('Tugas berhasil ditambahkan!', 'success');
-                fetchTasks();
+                fetchTasks(); // Muat ulang semua task
             } catch (error) {
                 console.error('Error adding task:', error);
                 showAlert(error.message, 'error');
+            } finally {
+                submitButton.classList.remove('btn-disabled');
+                submitButton.innerText = 'Tambah';
             }
         };
 
@@ -183,17 +204,36 @@
 
             if (target.classList.contains('toggle-status')) {
                 const is_completed = target.checked;
-                updateTaskStatus(taskId, is_completed);
+                updateTaskStatus(taskId, is_completed, taskElement);
             }
 
             if (target.closest('.delete-btn')) {
-                // (DIUBAH) Buka modal, bukan confirm()
-                taskIdToDelete = taskId;
-                delete_modal.showModal();
+                // (DIUBAH) Gunakan SweetAlert2 untuk konfirmasi
+                Swal.fire({
+                    title: 'Anda yakin?',
+                    text: "Tugas yang dihapus tidak dapat dikembalikan!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Ya, hapus!',
+                    cancelButtonText: 'Batal'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        deleteTask(taskId, taskElement);
+                    }
+                })
             }
         };
 
-        const updateTaskStatus = async (id, is_completed) => {
+        const updateTaskStatus = async (id, is_completed, taskElement) => {
+            // Animasi optimistik
+            const titleSpan = taskElement.querySelector('.task-title');
+            titleSpan.classList.toggle('line-through', is_completed);
+            titleSpan.classList.toggle('text-base-content/50', is_completed);
+            taskElement.classList.toggle('task-completed', is_completed);
+            taskElement.classList.toggle('bg-base-200', is_completed);
+
             try {
                 const response = await fetch(`${API_URL}/${id}`, {
                     method: 'PUT',
@@ -205,52 +245,62 @@
                     })
                 });
                 if (!response.ok) throw new Error('Gagal mengupdate status');
-                fetchTasks();
+                // Tidak perlu fetchTasks() lagi karena sudah update UI secara optimistik
             } catch (error) {
                 console.error('Error updating task:', error);
                 showAlert(error.message, 'error');
+                // Jika gagal, kembalikan UI ke state semula
+                titleSpan.classList.toggle('line-through', !is_completed);
+                titleSpan.classList.toggle('text-base-content/50', !is_completed);
+                taskElement.classList.toggle('task-completed', !is_completed);
+                taskElement.classList.toggle('bg-base-200', !is_completed);
             }
         };
 
-        const deleteTask = async (id) => {
-            try {
-                const response = await fetch(`${API_URL}/${id}`, {
-                    method: 'DELETE'
-                });
-                if (!response.ok) throw new Error('Gagal menghapus tugas');
-                showAlert('Tugas berhasil dihapus.', 'success');
-                fetchTasks();
-            } catch (error) {
-                console.error('Error deleting task:', error);
-                showAlert(error.message, 'error');
-            }
+        const deleteTask = async (id, taskElement) => {
+            // (BARU) Animasikan elemen keluar sebelum dihapus
+            gsap.to(taskElement, {
+                duration: 0.4,
+                opacity: 0,
+                x: -100,
+                ease: "power2.in",
+                onComplete: async () => {
+                    taskElement.remove(); // Hapus dari DOM
+                    try {
+                        const response = await fetch(`${API_URL}/${id}`, {
+                            method: 'DELETE'
+                        });
+                        if (!response.ok) throw new Error('Gagal menghapus tugas di server');
+                        showAlert('Tugas berhasil dihapus.', 'success');
+                        // Cek jika ini adalah task terakhir, tampilkan empty state
+                        if (taskListContainer.querySelectorAll('.task-item').length === 0) {
+                            emptyState.classList.remove('hidden');
+                        }
+                    } catch (error) {
+                        console.error('Error deleting task:', error);
+                        showAlert(error.message, 'error');
+                        // Jika gagal hapus, muat ulang list untuk konsistensi
+                        fetchTasks();
+                    }
+                }
+            });
         };
 
         const showLoading = (isLoading) => {
             if (isLoading) {
                 loadingIndicator.classList.remove('hidden');
                 emptyState.classList.add('hidden');
-                taskListContainer.innerHTML = '';
+                // Pastikan list task lama hilang saat loading
+                taskListContainer.querySelectorAll('.task-item').forEach(el => el.remove());
             } else {
                 loadingIndicator.classList.add('hidden');
             }
         };
 
-        // (BARU) Fungsi untuk menangani konfirmasi hapus dari modal
-        const handleConfirmDelete = () => {
-            if (taskIdToDelete) {
-                deleteTask(taskIdToDelete);
-                taskIdToDelete = null; // Reset ID
-            }
-            // Modal akan tertutup oleh form method="dialog"
-        };
-
-
         // === EVENT LISTENERS ===
         document.addEventListener('DOMContentLoaded', fetchTasks);
         addTaskForm.addEventListener('submit', handleAddTask);
         taskListContainer.addEventListener('click', handleTaskListClick);
-        confirmDeleteBtn.addEventListener('click', handleConfirmDelete); // (BARU)
     </script>
 </body>
 
