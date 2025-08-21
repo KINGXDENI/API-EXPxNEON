@@ -23,13 +23,16 @@
             }
         }
 
-        .task-item {
+        .task-item,
+        .alert-toast {
             animation: fadeIn 0.3s ease-out;
         }
     </style>
 </head>
 
 <body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
+
+    <div id="alertContainer" class="toast toast-top toast-center z-50"></div>
 
     <div class="card w-full max-w-2xl bg-base-100 shadow-xl">
         <div class="card-body">
@@ -47,18 +50,31 @@
                 <div id="loading" class="text-center py-4">
                     <span class="loading loading-spinner loading-lg"></span>
                 </div>
-
                 <div id="emptyState" class="hidden text-center py-4">
                     <p class="text-gray-500">🎉 Hore! Tidak ada tugas yang perlu dikerjakan.</p>
                 </div>
-
             </div>
         </div>
     </div>
 
+    <dialog id="delete_modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Konfirmasi Hapus</h3>
+            <p class="py-4">Apakah Anda yakin ingin menghapus tugas ini? Aksi ini tidak dapat dibatalkan.</p>
+            <div class="modal-action">
+                <form method="dialog">
+                    <button class="btn">Batal</button>
+                    <button id="confirmDeleteBtn" class="btn btn-error">Hapus</button>
+                </form>
+            </div>
+        </div>
+    </dialog>
+
+
     <script>
         // === KONFIGURASI ===
-        // Ganti URL ini jika backend Anda di-deploy di tempat lain
+        // Pastikan URL ini sesuai dengan setup backend Anda
+        // Jika Anda mengikuti saran sebelumnya, gunakan '/api/tasks'
         const API_URL = '/tasks';
 
         // === ELEMEN DOM ===
@@ -67,12 +83,33 @@
         const taskTitleInput = document.getElementById('taskTitleInput');
         const loadingIndicator = document.getElementById('loading');
         const emptyState = document.getElementById('emptyState');
+        const alertContainer = document.getElementById('alertContainer');
+        const deleteModal = document.getElementById('delete_modal');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
 
-        // === FUNGSI-FUNGSI API ===
+        let taskIdToDelete = null; // Variabel untuk menyimpan ID task yang akan dihapus
+
+        // === FUNGSI-FUNGSI UTAMA ===
 
         /**
-         * Mengambil semua task dari backend dan menampilkannya
+         * Menampilkan notifikasi alert (toast)
+         * @param {string} message Pesan yang akan ditampilkan
+         * @param {string} type 'success' atau 'error'
          */
+        const showAlert = (message, type = 'success') => {
+            const alertElement = document.createElement('div');
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+            alertElement.className = `alert ${alertClass} shadow-lg alert-toast`;
+            alertElement.innerHTML = `<span>${message}</span>`;
+
+            alertContainer.appendChild(alertElement);
+
+            // Hapus alert setelah 3 detik
+            setTimeout(() => {
+                alertElement.remove();
+            }, 3000);
+        };
+
         const fetchTasks = async () => {
             showLoading(true);
             try {
@@ -82,19 +119,14 @@
                 renderTasks(tasks);
             } catch (error) {
                 console.error('Error fetching tasks:', error);
-                taskListContainer.innerHTML = `<p class="text-error text-center">Gagal memuat tugas.</p>`;
+                showAlert('Gagal memuat tugas.', 'error');
             } finally {
                 showLoading(false);
             }
         };
 
-        /**
-         * Menampilkan task ke dalam DOM
-         */
         const renderTasks = (tasks) => {
-            // Bersihkan container sebelum render ulang
             taskListContainer.innerHTML = '';
-
             if (tasks.length === 0) {
                 emptyState.classList.remove('hidden');
             } else {
@@ -103,30 +135,20 @@
                     const taskElement = document.createElement('div');
                     taskElement.className = 'alert shadow-sm task-item';
                     taskElement.setAttribute('data-id', task.id);
-
                     const textClass = task.is_completed ? 'line-through text-gray-400' : '';
-
                     taskElement.innerHTML = `
                         <div class="flex items-center gap-4 w-full">
-                            <input 
-                                type="checkbox" 
-                                class="checkbox checkbox-primary toggle-status" 
-                                ${task.is_completed ? 'checked' : ''} 
-                            />
+                            <input type="checkbox" class="checkbox checkbox-primary toggle-status" ${task.is_completed ? 'checked' : ''} />
                             <span class="flex-grow ${textClass}">${task.title}</span>
                             <button class="btn btn-ghost btn-xs btn-circle delete-btn">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
-                        </div>
-                    `;
+                        </div>`;
                     taskListContainer.appendChild(taskElement);
                 });
             }
         };
 
-        /**
-         * Mengirim task baru ke backend
-         */
         const handleAddTask = async (event) => {
             event.preventDefault();
             const title = taskTitleInput.value.trim();
@@ -144,40 +166,33 @@
                 });
                 if (!response.ok) throw new Error('Gagal menambah tugas');
 
-                taskTitleInput.value = ''; // Kosongkan input
-                fetchTasks(); // Muat ulang daftar task
+                taskTitleInput.value = '';
+                showAlert('Tugas berhasil ditambahkan!', 'success');
+                fetchTasks();
             } catch (error) {
                 console.error('Error adding task:', error);
+                showAlert(error.message, 'error');
             }
         };
 
-        /**
-         * Menangani klik pada checkbox atau tombol hapus
-         */
         const handleTaskListClick = (event) => {
             const target = event.target;
             const taskElement = target.closest('.task-item');
             if (!taskElement) return;
-
             const taskId = taskElement.dataset.id;
 
-            // Jika checkbox di-klik
             if (target.classList.contains('toggle-status')) {
                 const is_completed = target.checked;
                 updateTaskStatus(taskId, is_completed);
             }
 
-            // Jika tombol hapus di-klik
             if (target.closest('.delete-btn')) {
-                if (confirm('Apakah Anda yakin ingin menghapus tugas ini?')) {
-                    deleteTask(taskId);
-                }
+                // (DIUBAH) Buka modal, bukan confirm()
+                taskIdToDelete = taskId;
+                delete_modal.showModal();
             }
         };
 
-        /**
-         * Mengupdate status selesai/belum selesai
-         */
         const updateTaskStatus = async (id, is_completed) => {
             try {
                 const response = await fetch(`${API_URL}/${id}`, {
@@ -190,38 +205,44 @@
                     })
                 });
                 if (!response.ok) throw new Error('Gagal mengupdate status');
-                fetchTasks(); // Muat ulang daftar untuk menampilkan perubahan
+                fetchTasks();
             } catch (error) {
                 console.error('Error updating task:', error);
+                showAlert(error.message, 'error');
             }
         };
 
-        /**
-         * Menghapus task
-         */
         const deleteTask = async (id) => {
             try {
                 const response = await fetch(`${API_URL}/${id}`, {
                     method: 'DELETE'
                 });
                 if (!response.ok) throw new Error('Gagal menghapus tugas');
-                fetchTasks(); // Muat ulang daftar
+                showAlert('Tugas berhasil dihapus.', 'success');
+                fetchTasks();
             } catch (error) {
                 console.error('Error deleting task:', error);
+                showAlert(error.message, 'error');
             }
         };
 
-        /**
-         * Menampilkan atau menyembunyikan indikator loading
-         */
         const showLoading = (isLoading) => {
             if (isLoading) {
                 loadingIndicator.classList.remove('hidden');
                 emptyState.classList.add('hidden');
-                taskListContainer.innerHTML = ''; // Kosongkan task list saat loading
+                taskListContainer.innerHTML = '';
             } else {
                 loadingIndicator.classList.add('hidden');
             }
+        };
+
+        // (BARU) Fungsi untuk menangani konfirmasi hapus dari modal
+        const handleConfirmDelete = () => {
+            if (taskIdToDelete) {
+                deleteTask(taskIdToDelete);
+                taskIdToDelete = null; // Reset ID
+            }
+            // Modal akan tertutup oleh form method="dialog"
         };
 
 
@@ -229,8 +250,8 @@
         document.addEventListener('DOMContentLoaded', fetchTasks);
         addTaskForm.addEventListener('submit', handleAddTask);
         taskListContainer.addEventListener('click', handleTaskListClick);
+        confirmDeleteBtn.addEventListener('click', handleConfirmDelete); // (BARU)
     </script>
-
 </body>
 
 </html>
